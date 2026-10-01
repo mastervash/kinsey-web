@@ -5,8 +5,8 @@ export default function Nav() {
   const { stats, online } = useStats();
   return (
     <header className="nav">
-      <NavLink to="/" className="logo" aria-label="MAIGRET//WEB home">
-        MAIGRET<span className="logo-sep">//</span>WEB
+      <NavLink to="/" className="logo" aria-label="KINSEY//WEB home">
+        KINSEY<span className="logo-sep">//</span>WEB
       </NavLink>
       <nav className="nav-links">
         <NavLink to="/" end>

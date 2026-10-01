@@ -1,6 +1,6 @@
-"""maigret-web engine: username / person search across thousands of sites."""
+"""kinsey-web engine (maigret-derived): username / person search across thousands of sites."""
 
-__title__ = 'maigret-web'
+__title__ = 'kinsey-web'
 __package__ = 'maigret'
 
 from .__version__ import __version__

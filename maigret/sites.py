@@ -108,7 +108,7 @@ class MaigretSite:
     protection: List[str] = []
     # Alternative hosts, one is picked at random when a check is retried
     mirrors: List[str] = []
-    # maigret-web site-DB metadata
+    # kinsey-web site-DB metadata
     origin: Optional[str] = None  # maigret (default) | wmn | wmn-merged | custom
     quarantined = False  # failed automated verification; skipped unless forced
     quarantine_reason: Optional[str] = None

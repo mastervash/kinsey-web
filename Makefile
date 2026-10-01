@@ -1,7 +1,7 @@
 PY ?= .venv/bin/python
 
 dev-api:
-	MW_DATA_DIR=var $(PY) -m maigret.server
+	KW_DATA_DIR=var $(PY) -m maigret.server
 
 dev-web:
 	cd web && npm run dev

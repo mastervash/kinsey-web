@@ -3,16 +3,16 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-name = "maigret-web"
+name = "kinsey-web"
 version = "0.6.6"
 description = "Web-first OSINT search for people and usernames across thousands of sites."
 authors = ["Soxoj <soxoj@protonmail.com>", "mastervash"]
 readme = "README.md"
 packages = [{ include = "maigret" }]
 license = "MIT License"
-homepage = "https://github.com/mastervash/maigret-web"
+homepage = "https://github.com/mastervash/kinsey-web"
 
-repository = "https://github.com/mastervash/maigret-web"
+repository = "https://github.com/mastervash/kinsey-web"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Programming Language :: Python :: 3",
@@ -75,4 +75,4 @@ coverage = "^7.9.2"
 black = ">=25.1,<27.0"
 
 [tool.poetry.scripts]
-maigret-web = "maigret.server.app:main"
+kinsey-web = "maigret.server.app:main"

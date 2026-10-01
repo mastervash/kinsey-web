@@ -3,10 +3,16 @@ import type {
   SiteDetail, SiteRow, SiteTestResult, Stats, TagCount, Verdict,
 } from "./types";
 
-const TOKEN_KEY = "mw_token";
+const TOKEN_KEY = "kw_token";
+const LEGACY_TOKEN_KEY = "mw_token";
 
 export function getToken(): string {
   try {
+    const legacy = localStorage.getItem(LEGACY_TOKEN_KEY);
+    if (legacy && !localStorage.getItem(TOKEN_KEY)) {
+      localStorage.setItem(TOKEN_KEY, legacy);
+      localStorage.removeItem(LEGACY_TOKEN_KEY);
+    }
     return localStorage.getItem(TOKEN_KEY) || "";
   } catch {
     return "";
@@ -146,7 +152,7 @@ export async function downloadExport(id: string, format: "json" | "csv" | "html"
   }
   if (!res.ok) throw new ApiError(res.status, `Export failed (${res.status})`);
   const blob = await res.blob();
-  let filename = `maigret-${id}.${format}`;
+  let filename = `kinsey-${id}.${format}`;
   const cd = res.headers.get("Content-Disposition");
   const m = cd && /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
   if (m) filename = decodeURIComponent(m[1]);

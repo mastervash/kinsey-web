@@ -86,7 +86,7 @@ export default function SettingsPage() {
             className="grow"
             type={showTok ? "text" : "password"}
             autoComplete="off"
-            placeholder="MW_TOKEN value"
+            placeholder="KW_TOKEN value"
             value={token}
             onChange={(e) => setTok(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && saveToken()}

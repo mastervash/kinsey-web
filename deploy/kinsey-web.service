@@ -1,0 +1,22 @@
+# systemd --user unit (linger enabled): ~/.config/systemd/user/kinsey-web.service
+[Unit]
+Description=kinsey-web - OSINT person/username search (oci, tailnet-only)
+After=network-online.target tailscaled.service
+Wants=network-online.target tailscaled.service
+
+[Service]
+Type=simple
+WorkingDirectory=/home/mastervash/kinsey-web
+EnvironmentFile=-/home/mastervash/.config/kinsey-web.env
+Environment=KW_HOST=100.78.113.1
+Environment=KW_PORT=7580
+Environment=KW_DATA_DIR=/home/mastervash/kinsey-web/var
+# bind fails until the tailscale IP exists
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do ip -4 addr show tailscale0 2>/dev/null | grep -q 100.78.113.1 && exit 0; sleep 2; done; exit 1'
+ExecStart=/home/mastervash/kinsey-web/.venv/bin/kinsey-web
+Restart=always
+RestartSec=5
+MemoryMax=1500M
+
+[Install]
+WantedBy=default.target

@@ -1,4 +1,4 @@
-"""maigret-web FastAPI app. Contract: docs/API.md."""
+"""kinsey-web FastAPI app. Contract: docs/API.md."""
 
 from __future__ import annotations
 
@@ -24,13 +24,19 @@ from ..sites import MaigretDatabase
 from .jobs import DEFAULT_OPTIONS, SearchManager, normalize_options
 from .store import Store
 
-ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DB_FILE = os.environ.get("MW_SITES_DB", os.path.join(ROOT, "maigret", "resources", "data.json"))
-DATA_DIR = os.environ.get("MW_DATA_DIR", os.path.join(ROOT, "var"))
-DIST = os.environ.get("MW_DIST", os.path.join(ROOT, "web", "dist"))
-TOKEN = os.environ.get("MW_TOKEN", "")
 
-log = logging.getLogger("maigret.server")
+def _env(name: str, default: str) -> str:
+    """KW_* env var, falling back to the legacy MW_* name."""
+    return os.environ.get(f"KW_{name}") or os.environ.get(f"MW_{name}") or default
+
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DB_FILE = _env("SITES_DB", os.path.join(ROOT, "maigret", "resources", "data.json"))
+DATA_DIR = _env("DATA_DIR", os.path.join(ROOT, "var"))
+DIST = _env("DIST", os.path.join(ROOT, "web", "dist"))
+TOKEN = _env("TOKEN", "")
+
+log = logging.getLogger("kinsey.server")
 
 
 class State:
@@ -46,12 +52,12 @@ S = State()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     S.db = MaigretDatabase().load_from_path(DB_FILE)
-    S.store = Store(os.path.join(DATA_DIR, "maigret-web.sqlite3"))
+    S.store = Store(os.path.join(DATA_DIR, "kinsey-web.sqlite3"))
     S.mgr = SearchManager(S.store, S.db)
     yield
 
 
-app = FastAPI(title="maigret-web", version=__version__, lifespan=lifespan)
+app = FastAPI(title="kinsey-web", version=__version__, lifespan=lifespan)
 
 
 def auth(request: Request):
@@ -201,7 +207,7 @@ def export(sid: str, format: Literal["json", "csv", "html"] = "json", min_confid
     s = _search_or_404(sid)
     rows = [r for r in S.store.results_for(sid)
             if r["status"] in ("claimed", "uncertain") and (r.get("confidence") or 0) >= min_confidence]
-    base = re.sub(r"[^\w.-]", "_", f"maigret_{s['kind']}_{s['query']}")[:80]
+    base = re.sub(r"[^\w.-]", "_", f"kinsey_{s['kind']}_{s['query']}")[:80]
     if format == "json":
         body = json.dumps({"search": s, "results": rows}, indent=2, default=str)
         return Response(body, media_type="application/json",
@@ -475,8 +481,8 @@ def spa(path: str):
 
 def main():
     import uvicorn
-    host = os.environ.get("MW_HOST", "127.0.0.1")
-    port = int(os.environ.get("MW_PORT", "7580"))
+    host = _env("HOST", "127.0.0.1")
+    port = int(_env("PORT", "7580"))
     logging.basicConfig(level=logging.INFO)
     uvicorn.run(app, host=host, port=port, log_level="info")
 

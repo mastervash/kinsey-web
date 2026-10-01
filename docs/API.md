@@ -1,6 +1,6 @@
-# maigret-web API contract (v1)
+# kinsey-web API contract (v1)
 
-Base: same origin, `/api/*`. Auth: if env `MW_TOKEN` set, every `/api` call needs
+Base: same origin, `/api/*`. Auth: if env `KW_TOKEN` set, every `/api` call needs
 `Authorization: Bearer <token>` (SSE: `?token=<token>` query param). Frontend keeps token in localStorage, prompts on 401.
 
 ## Types

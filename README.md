@@ -1,9 +1,10 @@
-# maigret-web
+# KINSEY//WEB
 
-Private, web-first fork of [soxoj/maigret](https://github.com/soxoj/maigret). Search for a person by
+kinsey-web: web-first fork of [soxoj/maigret](https://github.com/soxoj/maigret). Search for a person by
 **username**, **real name**, or **email** across ~6k sites, with false-positive scoring on every hit.
 
-No CLI. FastAPI backend (`maigret/server`) + React/Vite/TS frontend (`web/`).
+No CLI. FastAPI backend (`maigret/server`; the Python package keeps upstream's `maigret` name so
+upstream merges stay clean) + React/Vite/TS frontend (`web/`).
 
 ## What differs from upstream
 
@@ -24,17 +25,24 @@ No CLI. FastAPI backend (`maigret/server`) + React/Vite/TS frontend (`web/`).
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e . pytest pytest-asyncio pytest-httpserver httpx
 cd web && npm ci && npm run build && cd ..
-MW_HOST=127.0.0.1 MW_PORT=7580 .venv/bin/maigret-web     # serves UI + /api
+KW_HOST=127.0.0.1 KW_PORT=7580 .venv/bin/kinsey-web       # serves UI + /api
 ```
 
 Dev: `make dev-api` and `make dev-web` (vite proxies `/api` to :7580).
 
-Env: `MW_HOST`, `MW_PORT`, `MW_DATA_DIR` (sqlite), `MW_SITES_DB`, `MW_DIST`, `MW_TOKEN` (enables auth).
+Env: `KW_HOST`, `KW_PORT`, `KW_DATA_DIR` (sqlite), `KW_SITES_DB`, `KW_DIST`, `KW_TOKEN` (enables auth).
+Legacy `MW_*` names still work as fallbacks.
 
-Deploy on oci: `deploy/maigret-web.service` (tailnet-only bind). API contract: `docs/API.md`.
+Deploy on oci: `deploy/kinsey-web.service` (systemd --user unit, tailnet-only bind). API contract: `docs/API.md`.
 Plan: `ROADMAP.md`.
 
 ## Upstream sync
 
-`git fetch upstream && git log upstream/main -- maigret/resources/data.json` then cherry-pick site fixes.
+GitHub fork of soxoj/maigret (Sync fork button works). Locally:
+
+```bash
+git fetch upstream && git merge upstream/main
+```
+
+Removed upstream files (CLI, Flask UI, reports) show up as modify/delete conflicts: resolve with `git rm`.
 Engine files (`checking.py`, `sites.py`) are modified; expect conflicts there.
