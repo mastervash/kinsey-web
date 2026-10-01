@@ -1,8 +1,7 @@
 .git/
-.vscode/
-static/
+.venv/
+var/
+web/node_modules/
+web/dist/
 tests/
-*.txt
-!/requirements.txt
-venv/
-
+tools/verify_report.json

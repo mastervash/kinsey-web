@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: maigret-web
-    runtime: image
-    image:
-      url: docker.io/soxoj/maigret:web
-    plan: free

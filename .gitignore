@@ -53,3 +53,10 @@ docs/source/locale/**/*.mo
 
 # Secrets
 .env
+
+# maigret-web
+var/
+.venv/
+web/node_modules/
+web/dist/
+*.sqlite3*

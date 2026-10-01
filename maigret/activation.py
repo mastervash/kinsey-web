@@ -8,7 +8,7 @@ from typing import Dict
 
 from aiohttp import ClientSession, CookieJar
 
-from .db_updater import MAIGRET_HOME
+MAIGRET_HOME = os.environ.get("MW_DATA_DIR") or path.expanduser("~/.maigret")
 
 
 class ParsingActivator:

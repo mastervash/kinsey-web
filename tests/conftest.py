@@ -6,7 +6,6 @@ import pytest
 from _pytest.mark import Mark
 
 from maigret.sites import MaigretDatabase
-from maigret.maigret import setup_arguments_parser
 from maigret.settings import Settings
 from aiohttp import web
 
@@ -87,13 +86,6 @@ def settings():
     settings = Settings()
     settings.load([SETTINGS_FILE])
     return settings
-
-
-@pytest.fixture(scope='session')
-def argparser():
-    settings = Settings()
-    settings.load([SETTINGS_FILE])
-    return setup_arguments_parser(settings)
 
 
 @pytest.fixture(scope="session")

@@ -13,7 +13,13 @@ from urllib.parse import quote, urlparse
 
 # Third party imports
 import aiodns
-from alive_progress import alive_bar
+from contextlib import contextmanager
+
+
+@contextmanager
+def alive_bar(*_a, **_k):
+    """Console progress bars were CLI-only; keep call sites, drop the output."""
+    yield lambda *a, **k: None
 from aiohttp import ClientSession, TCPConnector, http_exceptions
 from aiohttp.resolver import ThreadedResolver
 from aiohttp.client_exceptions import (
@@ -261,6 +267,7 @@ class SimpleAiohttpChecker(CheckerBase):
             try:
                 async with request_method(**kwargs) as response:
                     status_code = response.status
+                    self.final_url = str(getattr(response, "url", "") or url)
                     # A response_url check runs with redirects disabled, so any
                     # 3xx reads as "user not found". Some sites intermittently
                     # bounce a request back to the SAME url to plant a session
@@ -464,6 +471,7 @@ class CurlCffiChecker(CheckerBase):
                         response = await session.get(**kwargs)
 
                     status_code = response.status_code
+                    self.final_url = str(getattr(response, 'url', '') or self.url)
                     if self.encoding:
                         response.encoding = self.encoding
                     decoded_content = response.text
@@ -1167,6 +1175,15 @@ async def check_site_for_username(
         response, query_notify, logger, default_result, site
     )
 
+    if response_result.get('status') is not None:
+        try:
+            await _score_result(
+                site, username, options, logger, checker, response, response_result,
+                retry=kwargs.get('retry'),
+            )
+        except Exception as e:  # scoring must never break a search
+            logger.warning(f"scoring failed for {site.name}: {e}", exc_info=True)
+
     if (
         options.get('enrich')
         and response_result.get('status')
@@ -1184,6 +1201,94 @@ async def check_site_for_username(
     query_notify.update(response_result['status'], site.similar_search)
 
     return site.name, response_result
+
+
+class _NullNotify:
+    def __getattr__(self, name):
+        return lambda *a, **k: None
+
+
+async def _probe_control(site, options, logger, retry=None):
+    """Run the same site check for a random non-existent username."""
+    from .scoring import control_username
+
+    name = control_username()
+    if site.regex_check and re.search(site.regex_check, name) is None:
+        name = name[:8]
+        if re.search(site.regex_check, name) is None:
+            return None
+    ctrl = make_site_result(site, name, dict(options, parsing=False), logger, retry=retry)
+    if ctrl.get("status") is not None:
+        return None
+    ctrl_checker = ctrl.get("checker")
+    if not ctrl_checker:
+        return None
+    resp = await ctrl_checker.check()
+    ctrl = process_site_result(resp, _NullNotify(), logger, ctrl, site)
+    html, status_code, err = resp if resp else ("", None, None)
+    return {
+        "username": name,
+        "html": html or "",
+        "status_code": status_code,
+        "error": err,
+        "final_url": getattr(ctrl_checker, "final_url", None) or ctrl.get("url_probe") or "",
+        "claimed": bool(ctrl.get("status") and ctrl["status"].status == MaigretCheckStatus.CLAIMED),
+    }
+
+
+async def _score_result(site, username, options, logger, checker, response, results_info, retry=None):
+    """Attach confidence/reasons/evidence to a CLAIMED result; demote obvious junk."""
+    from .scoring import Fingerprint, score
+
+    result = results_info["status"]
+    result.confidence = None
+    result.reasons = []
+    result.evidence = {}
+    if result.status != MaigretCheckStatus.CLAIMED:
+        return
+
+    html, status_code, _ = response
+    html = html or ""
+    requested = results_info.get("url_probe") or results_info.get("url_user") or ""
+    target = Fingerprint.build(html, status_code, getattr(checker, "final_url", None) or requested)
+
+    control = None
+    ctrl_fp = None
+    if options.get("control_probe", False):
+        control = await _probe_control(site, options, logger, retry=retry)
+        if control and not control["error"]:
+            ctrl_fp = Fingerprint.build(control["html"], control["status_code"], control["final_url"])
+
+    stats = (options.get("site_stats") or {}).get(site.name, {})
+    verdict = score(
+        check_type=site.check_type,
+        has_presence_strs=bool(site.presense_strs),
+        has_absence_strs=bool(site.absence_strs),
+        username=username,
+        requested_url=requested,
+        target=target,
+        target_html=html,
+        control=ctrl_fp,
+        control_name=control["username"] if control else "",
+        control_claimed=control["claimed"] if control and ctrl_fp else None,
+        ids=result.ids_data,
+        reliability=stats.get("reliability"),
+        fp_reports=stats.get("fp_reports", 0),
+        confirmations=stats.get("confirmations", 0),
+    )
+    result.confidence = verdict.confidence
+    result.reasons = verdict.reasons
+    result.evidence = {
+        "target": target.public(),
+        "control": ctrl_fp.public() if ctrl_fp else None,
+        "control_username": control["username"] if control else None,
+        "similarity": verdict.similarity,
+    }
+    if verdict.status == "available":
+        result.status = MaigretCheckStatus.AVAILABLE
+    elif verdict.status == "blocked":
+        result.status = MaigretCheckStatus.UNKNOWN
+        result.error = CheckError("Blocked", verdict.reasons[-1])
 
 
 async def debug_ip_request(checker, logger):
@@ -1276,6 +1381,9 @@ async def maigret(
 
     query_notify.start(username, id_type)
 
+    control_probe = kwargs.pop("control_probe", True)
+    site_stats = kwargs.pop("site_stats", None) or {}
+
     cookie_jar = None
     if cookies:
         logger.debug(f"Using cookies jar file {cookies}")
@@ -1334,6 +1442,8 @@ async def maigret(
     options["forced"] = forced
     options["cloudflare_bypass"] = cloudflare_bypass
     options["proxy"] = proxy
+    options["control_probe"] = control_probe
+    options["site_stats"] = site_stats
 
     # results from analysis of all sites
     # When the caller wants to read partial results after a Ctrl+C
