@@ -10,7 +10,7 @@ venv/
 __pycache__/
 
 # Pip
-src/
+/src/
 
 # Jupyter Notebook
 .ipynb_checkpoints
