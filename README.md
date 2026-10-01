@@ -6,6 +6,18 @@ kinsey-web: web-first fork of [soxoj/maigret](https://github.com/soxoj/maigret).
 No CLI. FastAPI backend (`maigret/server`; the Python package keeps upstream's `maigret` name so
 upstream merges stay clean) + React/Vite/TS frontend (`web/`).
 
+![Search](docs/screenshots/search.png)
+
+| Results | Graph |
+|---|---|
+| ![Results](docs/screenshots/results.png) | ![Graph](docs/screenshots/graph.png) |
+
+| Sites | History | Settings |
+|---|---|---|
+| ![Sites](docs/screenshots/sites.png) | ![History](docs/screenshots/history.png) | ![Settings](docs/screenshots/settings.png) |
+
+<sub>Demo search for the public handle `torvalds`; scraped profile fields are blurred.</sub>
+
 ## What differs from upstream
 
 - **Control probe + confidence score.** Every hit is re-checked against a random never-existing username
