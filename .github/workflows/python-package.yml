@@ -21,10 +21,11 @@ jobs:
       - run: python -m pytest -q tests
   web:
     runs-on: ubuntu-latest
-    if: ${{ hashFiles('web/package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: cd web && npm ci && npm run build
+      - run: |
+          if [ ! -f web/package.json ]; then echo 'no web/ yet'; exit 0; fi
+          cd web && npm ci && npm run build
