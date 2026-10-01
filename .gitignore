@@ -60,3 +60,4 @@ var/
 web/node_modules/
 web/dist/
 *.sqlite3*
+tools/verify_report.json

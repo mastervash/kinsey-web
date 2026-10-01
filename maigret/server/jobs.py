@@ -206,6 +206,7 @@ class Job:
                         self.publish("start", {"total": self.counts["total"]})
                 store.update_search(self.id, counts=self.counts)
             s["status"] = "done"
+            self.counts["checked"] = self.counts["total"]  # sites skipped by engine (filtered/errored) still count as done
         except asyncio.CancelledError:
             s["status"] = "stopped"
         except Exception as e:  # surface, never crash the server
