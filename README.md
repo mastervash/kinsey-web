@@ -40,6 +40,18 @@ cd web && npm ci && npm run build && cd ..
 KW_HOST=127.0.0.1 KW_PORT=7580 .venv/bin/kinsey-web       # serves UI + /api
 ```
 
+### Docker
+
+Multi-arch image (amd64/arm64) built by CI on every push to `main`:
+
+```bash
+docker run -d --name kinsey-web -p 7580:7580 -v kinsey-data:/data \
+  -e KW_TOKEN=change-me ghcr.io/mastervash/kinsey-web:latest
+```
+
+Tags: `latest`, `sha-<commit>`, and `X.Y.Z` / `X.Y` for `v*` git tags. `/data` holds the SQLite history
+and the editable site DB (seeded on first start). Runs as uid 1000.
+
 Dev: `make dev-api` and `make dev-web` (vite proxies `/api` to :7580).
 
 Env: `KW_HOST`, `KW_PORT`, `KW_DATA_DIR` (sqlite), `KW_SITES_DB`, `KW_DIST`, `KW_TOKEN` (enables auth).

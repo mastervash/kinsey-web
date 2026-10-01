@@ -1,7 +1,13 @@
 .git/
+.github/
 .venv/
 var/
 web/node_modules/
 web/dist/
 tests/
+docs/
+tools/
+utils/
+*.md
+!README.md
 tools/verify_report.json
