@@ -77,7 +77,9 @@ interface SearchOptions {
 | PATCH | /api/sites/{name} | partial `{disabled?, tags?, presenceStrs?, absenceStrs?, checkType?, url?}` | `SiteRow` |
 | POST | /api/sites/{name}/test | `{username?}` | `{claimed: Result, unclaimed: Result, healthy: boolean}` |
 | GET | /api/tags | | `{tag: string, count: number}[]` |
-| GET/PUT | /api/settings | `{defaults: SearchOptions, proxy, tor_proxy}` | same |
+| GET/PUT | /api/settings | `{defaults: SearchOptions, proxy, tor_proxy, max_connections, webgate: {enabled, url, max_timeout_ms}}` | same |
+| GET | /api/webgate/status | | `{configured, enabled, ok, url?, info?, error?}` (solver `/health`) |
+| POST | /api/webgate/request | `{url, method?: "get"\|"post", post_data?, max_timeout_ms?, include_body?: true}` | `{status, url, user_agent, cookies[], headers, body_length, body, solver_version, elapsed_ms}` (FlareSolverr-style `request.get/post` via Byparr) |
 | GET | /api/stats | | `{sites_total, sites_enabled, sites_quarantined, searches, results_claimed, feedback_fp, feedback_confirmed}` |
 
 `SiteRow = {name, url_main, url, tags, check_type, disabled, quarantined, rank, reliability: number|null, fp_reports: number, confirmations: number, last_verified: string|null, source: "maigret"|"wmn"|"custom"}`
@@ -90,3 +92,10 @@ interface SearchOptions {
 - `done` `{status, counts}`
 - `error` `{message}`
 On connect, server replays all existing results for the search, then streams live.
+
+## Webgate (challenge solver)
+
+`settings.webgate.url` points at a FlareSolverr-compatible `/v1` endpoint (Byparr: `http://docker-nuc:8191/v1`).
+Env `KW_WEBGATE_URL` presets it (enables it unless settings override). When enabled, sites whose `protection`
+includes `cf_js_challenge`, `cf_firewall`, `js_challenge`, `aws_waf_js_challenge`, `ddos_guard_challenge` or `webgate`
+are fetched through the solver in searches and site tests. `/api/webgate/request` is a direct proxy for ad-hoc solves.

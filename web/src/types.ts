@@ -103,10 +103,26 @@ export interface TagCount {
   count: number;
 }
 
+export interface WebgateSettings {
+  enabled: boolean;
+  url: string;
+  max_timeout_ms: number;
+}
+
+export interface WebgateStatus {
+  configured: boolean;
+  enabled: boolean;
+  ok: boolean;
+  url?: string;
+  error?: string;
+  info?: { msg?: string; version?: string };
+}
+
 export interface Settings {
   defaults: SearchOptions;
   proxy: string | null;
   tor_proxy: string | null;
+  webgate?: WebgateSettings;
 }
 
 export interface Stats {

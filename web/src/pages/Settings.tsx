@@ -4,7 +4,9 @@ import { api, getToken, setToken } from "../api";
 import OptionsPanel from "../components/OptionsPanel";
 import { useTags } from "../hooks";
 import { useToast } from "../toast";
-import { DEFAULT_OPTIONS, type Health, type Settings } from "../types";
+import { DEFAULT_OPTIONS, type Health, type Settings, type WebgateStatus } from "../types";
+
+const WEBGATE_DEFAULT = { enabled: false, url: "", max_timeout_ms: 60000 };
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -18,6 +20,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [clearing, setClearing] = useState(false);
+  const [gate, setGate] = useState<WebgateStatus | null>(null);
+  const [gateBusy, setGateBusy] = useState(false);
 
   const load = () => {
     setLoadErr(null);
@@ -28,6 +32,7 @@ export default function SettingsPage() {
           defaults: { ...DEFAULT_OPTIONS, ...(s?.defaults || {}) },
           proxy: s?.proxy ?? "",
           tor_proxy: s?.tor_proxy ?? "",
+          webgate: { ...WEBGATE_DEFAULT, ...(s?.webgate || {}) },
         }),
       )
       .catch((e) => setLoadErr(e.message));
@@ -55,12 +60,24 @@ export default function SettingsPage() {
         tor_proxy: settings.tor_proxy?.trim() || null,
       };
       const s = await api.putSettings(body);
-      if (s) setSettings({ defaults: { ...DEFAULT_OPTIONS, ...s.defaults }, proxy: s.proxy ?? "", tor_proxy: s.tor_proxy ?? "" });
+      if (s) setSettings({ defaults: { ...DEFAULT_OPTIONS, ...s.defaults }, proxy: s.proxy ?? "", tor_proxy: s.tor_proxy ?? "", webgate: { ...WEBGATE_DEFAULT, ...(s.webgate || {}) } });
       toast.push("Settings saved", "ok");
     } catch (e) {
       toast.error(e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const testGate = async () => {
+    setGateBusy(true);
+    try {
+      await save();
+      setGate(await api.webgateStatus());
+    } catch (e) {
+      toast.error(e);
+    } finally {
+      setGateBusy(false);
     }
   };
 
@@ -148,6 +165,43 @@ export default function SettingsPage() {
                   onChange={(e) => setSettings({ ...settings, tor_proxy: e.target.value })}
                 />
               </label>
+            </div>
+            <div className="section-label">Challenge solver (Byparr / FlareSolverr API)</div>
+            <div className="options-grid">
+              <label className="field field-wide">
+                <span>Solver URL</span>
+                <input
+                  value={settings.webgate?.url ?? ""}
+                  placeholder="http://docker-nuc:8191/v1"
+                  onChange={(e) => setSettings({ ...settings, webgate: { ...WEBGATE_DEFAULT, ...settings.webgate, url: e.target.value } })}
+                />
+              </label>
+              <label className="field">
+                <span>Max timeout (ms)</span>
+                <input
+                  type="number"
+                  value={settings.webgate?.max_timeout_ms ?? 60000}
+                  onChange={(e) => setSettings({ ...settings, webgate: { ...WEBGATE_DEFAULT, ...settings.webgate, max_timeout_ms: Number(e.target.value) || 60000 } })}
+                />
+              </label>
+              <label className="field">
+                <span>Route Cloudflare-protected sites through solver</span>
+                <input
+                  type="checkbox"
+                  checked={!!settings.webgate?.enabled}
+                  onChange={(e) => setSettings({ ...settings, webgate: { ...WEBGATE_DEFAULT, ...settings.webgate, enabled: e.target.checked } })}
+                />
+              </label>
+            </div>
+            <div className="row gap">
+              <button className="btn btn-ghost btn-sm" onClick={testGate} disabled={gateBusy}>
+                {gateBusy ? "Testing…" : "Save & test solver"}
+              </button>
+              {gate && (
+                <span className={gate.ok ? "ok-text small" : "bad-text small"}>
+                  {gate.ok ? `solver ok${gate.info?.version ? ` · v${gate.info.version}` : ""}` : gate.configured ? `unreachable: ${gate.error ?? "unhealthy"}` : "not configured"}
+                </span>
+              )}
             </div>
             <div className="row-end gap">
               <button className="btn btn-ghost btn-sm" onClick={() => setSettings({ ...settings, defaults: DEFAULT_OPTIONS })}>

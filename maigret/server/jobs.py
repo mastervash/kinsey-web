@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -31,6 +32,37 @@ DEFAULT_OPTIONS: Dict[str, Any] = {
     "max_candidates": 8,
     "recursive": False,
 }
+
+
+WEBGATE_TRIGGERS = ["cf_js_challenge", "cf_firewall", "webgate", "js_challenge", "aws_waf_js_challenge", "ddos_guard_challenge"]
+
+
+def webgate_settings(st: Optional[dict]) -> Dict[str, Any]:
+    """Normalized FlareSolverr-style (Byparr/FlareSolverr) solver settings.
+
+    Falls back to KW_WEBGATE_URL / KW_MW_* env so a deploy can preconfigure it.
+    """
+    w = dict((st or {}).get("webgate") or {})
+    env_url = os.environ.get("KW_WEBGATE_URL", "").strip()
+    url = (w.get("url") or env_url or "").strip()
+    enabled = bool(w["enabled"]) if "enabled" in w else bool(env_url)
+    try:
+        timeout_ms = int(w.get("max_timeout_ms") or 60000)
+    except (TypeError, ValueError):
+        timeout_ms = 60000
+    return {"enabled": enabled and bool(url), "url": url, "max_timeout_ms": max(5000, min(120000, timeout_ms))}
+
+
+def webgate_config(st: Optional[dict]) -> Optional[Dict[str, Any]]:
+    """Engine `cloudflare_bypass` dict, or None when disabled."""
+    w = webgate_settings(st)
+    if not w["enabled"]:
+        return None
+    return {
+        "trigger_protection": list(WEBGATE_TRIGGERS),
+        "session_prefix": "kinsey",
+        "modules": [{"name": "byparr", "method": "json_api", "url": w["url"], "max_timeout_ms": w["max_timeout_ms"]}],
+    }
 
 
 def normalize_options(opts: Optional[dict], defaults: Optional[dict] = None) -> Dict[str, Any]:
@@ -236,6 +268,7 @@ class Job:
             retries=0,
             control_probe=o["control_probe"],
             site_stats=self.m.store.site_stats(),
+            cloudflare_bypass=webgate_config(st),
         )
 
 

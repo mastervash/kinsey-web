@@ -1,5 +1,5 @@
 import type {
-  GraphData, Health, Kind, Result, Search, SearchContext, SearchOptions, Settings,
+  GraphData, Health, Kind, Result, Search, SearchContext, SearchOptions, Settings, WebgateStatus,
   SiteDetail, SiteRow, SiteTestResult, Stats, TagCount, Verdict,
 } from "./types";
 
@@ -134,6 +134,7 @@ export const api = {
     request<SiteTestResult>("POST", `/api/sites/${enc(name)}/test`, username ? { username } : {}),
   getSettings: () => request<Settings>("GET", "/api/settings"),
   putSettings: (s: Settings) => request<Settings>("PUT", "/api/settings", s),
+  webgateStatus: () => request<WebgateStatus>("GET", "/api/webgate/status"),
 };
 
 /** Download export with auth header (falls back to token query param). */

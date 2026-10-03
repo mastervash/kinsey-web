@@ -21,7 +21,7 @@ from pydantic import BaseModel, Field
 
 from ..__version__ import __version__
 from ..sites import MaigretDatabase
-from .jobs import DEFAULT_OPTIONS, SearchManager, normalize_options
+from .jobs import DEFAULT_OPTIONS, SearchManager, normalize_options, webgate_config, webgate_settings
 from .store import Store
 
 
@@ -408,7 +408,8 @@ async def test_site(name: str, body: SiteTestIn):
     for label, u in (("claimed", claimed), ("unclaimed", unclaimed)):
         res = await engine_search(username=u, site_dict={s.name: s}, logger=S.mgr.engine_log, timeout=15,
                                   is_parsing_enabled=True, no_progressbar=True, forced=True, control_probe=True,
-                                  site_stats=S.store.site_stats())
+                                  site_stats=S.store.site_stats(),
+                                  cloudflare_bypass=webgate_config(S.store.kv_get("settings", {}) or {}))
         st = next(iter(res.values()))["status"]
         out[label] = {
             "site": s.name, "username": u, "url": st.site_url_user, "status": map_status(st, 60),
@@ -439,7 +440,8 @@ def tags():
 def get_settings():
     st = S.store.kv_get("settings", {}) or {}
     return {"defaults": normalize_options(st.get("defaults")), "proxy": st.get("proxy", ""),
-            "tor_proxy": st.get("tor_proxy", ""), "max_connections": st.get("max_connections", 50)}
+            "tor_proxy": st.get("tor_proxy", ""), "max_connections": st.get("max_connections", 50),
+            "webgate": webgate_settings(st)}
 
 
 @app.put("/api/settings", dependencies=A)
@@ -449,9 +451,90 @@ def put_settings(body: Dict[str, Any]):
         "proxy": (body.get("proxy") or "").strip(),
         "tor_proxy": (body.get("tor_proxy") or "").strip(),
         "max_connections": max(5, min(200, int(body.get("max_connections") or 50))),
+        "webgate": webgate_settings({"webgate": {**(body.get("webgate") or {}), "enabled": bool((body.get("webgate") or {}).get("enabled"))}}),
     }
     S.store.kv_set("settings", st)
     return st
+
+
+# --------------------------------------------------------------------------- #
+# webgate: FlareSolverr-style solver (Byparr / FlareSolverr)
+# --------------------------------------------------------------------------- #
+class WebgateRequest(BaseModel):
+    url: str
+    method: Literal["get", "post"] = "get"
+    post_data: Optional[str] = None
+    max_timeout_ms: Optional[int] = None
+    include_body: bool = True
+
+
+async def _solver_call(endpoint: str, payload: Dict[str, Any], timeout: float) -> Dict[str, Any]:
+    from aiohttp import ClientSession, ClientTimeout
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=timeout)) as sess:
+            async with sess.post(endpoint, json=payload) as r:
+                try:
+                    data = await r.json(content_type=None)
+                except Exception:
+                    data = {"message": (await r.text())[:300]}
+                if r.status >= 400:
+                    raise HTTPException(502, f"solver {r.status}: {str(data.get('detail') or data.get('message') or data)[:300]}")
+                return data
+    except HTTPException:
+        raise
+    except asyncio.TimeoutError:
+        raise HTTPException(504, "solver timeout")
+    except Exception as e:
+        raise HTTPException(502, f"solver unreachable: {e}")
+
+
+def _solver_endpoint():
+    w = webgate_settings(S.store.kv_get("settings", {}) or {})
+    if not w["url"]:
+        raise HTTPException(409, "webgate url not configured")
+    return w["url"], w["max_timeout_ms"]
+
+
+@app.get("/api/webgate/status", dependencies=A)
+async def webgate_status():
+    """Health of the configured solver (GET <base>/health when available)."""
+    w = webgate_settings(S.store.kv_get("settings", {}) or {})
+    if not w["url"]:
+        return {"configured": False, "enabled": False, "ok": False}
+    base = w["url"].rsplit("/v1", 1)[0].rstrip("/")
+    from aiohttp import ClientSession, ClientTimeout
+    try:
+        async with ClientSession(timeout=ClientTimeout(total=8)) as sess:
+            async with sess.get(base + "/health") as r:
+                data = await r.json(content_type=None)
+                return {"configured": True, "enabled": w["enabled"], "ok": r.status == 200, "url": w["url"], "info": data}
+    except Exception as e:
+        return {"configured": True, "enabled": w["enabled"], "ok": False, "url": w["url"], "error": str(e)}
+
+
+@app.post("/api/webgate/request", dependencies=A)
+async def webgate_request(body: WebgateRequest):
+    """FlareSolverr-style fetch: solve challenge and return status/url/cookies/UA/body."""
+    scheme = urlparse(body.url).scheme
+    if scheme not in ("http", "https"):
+        raise HTTPException(400, "url must be http(s)")
+    endpoint, default_ms = _solver_endpoint()
+    ms = max(5000, min(120000, body.max_timeout_ms or default_ms))
+    payload: Dict[str, Any] = {"cmd": f"request.{body.method}", "url": body.url, "maxTimeout": ms}
+    if body.method == "post" and body.post_data is not None:
+        payload["postData"] = body.post_data
+    data = await _solver_call(endpoint, payload, ms / 1000 + 10)
+    if data.get("status") != "ok":
+        raise HTTPException(502, str(data.get("message") or "solver error"))
+    sol = data.get("solution") or {}
+    html_ = sol.get("response") or ""
+    return {
+        "status": int(sol.get("status") or 0), "url": sol.get("url"), "user_agent": sol.get("userAgent"),
+        "cookies": sol.get("cookies") or [], "headers": sol.get("headers") or {},
+        "body_length": len(html_), "body": html_ if body.include_body else None,
+        "solver_version": data.get("version"),
+        "elapsed_ms": (data.get("endTimestamp") or 0) - (data.get("startTimestamp") or 0) or None,
+    }
 
 
 @app.get("/api/stats", dependencies=A)
