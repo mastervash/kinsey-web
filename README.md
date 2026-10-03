@@ -30,6 +30,10 @@ upstream merges stay clean) + React/Vite/TS frontend (`web/`).
   Mastodon, Keybase, Hacker News, Gravatar for email) ranked against optional context (location,
   employer, school, keywords). Top candidates are then scanned.
 - **Site DB**: WhatsMyName import, quarantine flags from `tools/verify_sites.py`, NSFW excluded by default.
+- **Challenge solver (Byparr / FlareSolverr API)**: sites behind Cloudflare / AWS WAF / DDoS-Guard JS challenges
+  (`cf_js_challenge`, `cf_firewall`, ...) are fetched through a FlareSolverr-compatible `/v1` endpoint
+  (e.g. [Byparr](https://github.com/ThePhaseless/Byparr)). Configure in Settings or via `KW_WEBGATE_URL`.
+  `POST /api/webgate/request` exposes the solver as a direct fetch API. Expect 15-45s per protected site.
 - Entity graph, history (SQLite), JSON/CSV/HTML export, optional bearer-token auth.
 
 ## Run
@@ -54,7 +58,10 @@ and the editable site DB (seeded on first start). Runs as uid 1000.
 
 Dev: `make dev-api` and `make dev-web` (vite proxies `/api` to :7580).
 
-Env: `KW_HOST`, `KW_PORT`, `KW_DATA_DIR` (sqlite), `KW_SITES_DB`, `KW_DIST`, `KW_TOKEN` (enables auth).
+Env: `KW_HOST`, `KW_PORT`, `KW_DATA_DIR` (sqlite), `KW_SITES_DB`, `KW_DIST`, `KW_TOKEN` (enables auth),
+`KW_WEBGATE_URL` (solver endpoint, e.g. `http://byparr:8191/v1`; presets and enables the solver).
+
+Solver quick start: `docker run -d -p 8191:8191 --shm-size=1g ghcr.io/thephaseless/byparr:latest`.
 Legacy `MW_*` names still work as fallbacks.
 
 Deploy on oci: `deploy/kinsey-web.service` (systemd --user unit, tailnet-only bind). API contract: `docs/API.md`.
