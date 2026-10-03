@@ -276,6 +276,10 @@ class SearchManager:
         job.task = asyncio.get_running_loop().create_task(guarded())
         return search
 
+    def stop_all(self):
+        for sid in list(self.jobs):
+            self.stop(sid)
+
     def stop(self, sid: str) -> bool:
         job = self.jobs.get(sid)
         if not job or not job.task:

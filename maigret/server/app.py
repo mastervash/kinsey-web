@@ -136,6 +136,12 @@ def get_search(sid: str):
     return {"search": s, "results": S.store.results_for(sid)}
 
 
+@app.delete("/api/searches", dependencies=A)
+def clear_searches():
+    S.mgr.stop_all()
+    return {"ok": True, "deleted": S.store.clear_searches()}
+
+
 @app.delete("/api/searches/{sid}", dependencies=A)
 def delete_search(sid: str):
     S.mgr.stop(sid)

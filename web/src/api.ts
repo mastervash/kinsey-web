@@ -117,6 +117,7 @@ export const api = {
   listSearches: (limit = 50) => request<Search[]>("GET", `/api/searches${qs({ limit })}`),
   getSearch: (id: string) => request<{ search: Search; results: Result[] }>("GET", `/api/searches/${enc(id)}`),
   deleteSearch: (id: string) => request<{ ok: boolean }>("DELETE", `/api/searches/${enc(id)}`),
+  clearSearches: () => request<{ ok: boolean; deleted: number }>("DELETE", "/api/searches"),
   stopSearch: (id: string) => request<{ ok: boolean }>("POST", `/api/searches/${enc(id)}/stop`),
   graph: (id: string) => request<GraphData>("GET", `/api/searches/${enc(id)}/graph`),
   exportUrl: (id: string, format: "json" | "csv" | "html") =>

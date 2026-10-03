@@ -134,6 +134,20 @@ def test_server_feedback_roundtrip(client):
     assert any(n["type"] == "account" for n in g["nodes"])
 
 
+def test_server_clear_history(client):
+    c, appmod = client
+    st = appmod.S.store
+    for sid in ("aaa", "bbb"):
+        st.create_search({"id": sid, "kind": "username", "query": sid, "context": {}, "options": {},
+                          "status": "done", "created_at": "2026-01-01T00:00:00+00:00", "finished_at": None,
+                          "counts": {}, "candidates": []})
+    assert len(c.get("/api/searches").json()) == 2
+    r = c.delete("/api/searches").json()
+    assert r == {"ok": True, "deleted": 2}
+    assert c.get("/api/searches").json() == []
+    assert c.get("/api/stats").json()["searches"] == 0
+
+
 def test_server_auth(client, monkeypatch):
     c, appmod = client
     monkeypatch.setattr(appmod, "TOKEN", "sekrit")

@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const load = () => {
     setLoadErr(null);
@@ -60,6 +61,19 @@ export default function SettingsPage() {
       toast.error(e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const clearHistory = async () => {
+    if (!confirm("Delete ALL searches and their results? Running searches are stopped. This cannot be undone.")) return;
+    setClearing(true);
+    try {
+      const r = await api.clearSearches();
+      toast.push(`Cleared ${r.deleted} ${r.deleted === 1 ? "search" : "searches"}`, "ok");
+    } catch (e) {
+      toast.error(e);
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -145,6 +159,18 @@ export default function SettingsPage() {
             </div>
           </>
         )}
+      </section>
+
+      <section className="card">
+        <div className="card-head">
+          <h3>Search history</h3>
+          <span className="muted small">site reliability feedback is kept</span>
+        </div>
+        <div className="row-end gap">
+          <button className="btn btn-danger" onClick={clearHistory} disabled={clearing}>
+            {clearing ? "Clearing…" : "Clear search history"}
+          </button>
+        </div>
       </section>
     </div>
   );

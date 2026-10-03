@@ -66,6 +66,7 @@ interface SearchOptions {
 | GET | /api/searches | `?limit=50` | `Search[]` newest first |
 | GET | /api/searches/{id} | | `{search: Search, results: Result[]}` (all non-available results) |
 | DELETE | /api/searches/{id} | | `{ok}` |
+| DELETE | /api/searches | | `{ok, deleted}` (all searches + results; stops running jobs; site feedback kept) |
 | POST | /api/searches/{id}/stop | | `{ok}` |
 | GET | /api/searches/{id}/events | SSE | events below |
 | GET | /api/searches/{id}/export | `?format=json\|csv\|html` | file |

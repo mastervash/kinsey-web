@@ -103,6 +103,13 @@ class Store:
         self._x("DELETE FROM results WHERE search_id=?", (sid,))
         self._x("DELETE FROM searches WHERE id=?", (sid,))
 
+    def clear_searches(self) -> int:
+        """Delete every search and its results. Site feedback (reliability) is kept."""
+        n = self._x("SELECT COUNT(*) FROM searches").fetchone()[0]
+        self._x("DELETE FROM results")
+        self._x("DELETE FROM searches")
+        return n
+
     # results --------------------------------------------------------------
     def add_result(self, r: Dict[str, Any]):
         self._x(
